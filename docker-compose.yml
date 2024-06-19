@@ -1,0 +1,51 @@
+version: '3.3'
+services:
+
+  nginx_frontend:
+    image: nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx_frontend/nginx.conf:/etc/nginx/nginx.conf
+    links:
+      - http_capture_0
+      - http_capture_1
+    depends_on:
+      - http_capture_0
+      - http_capture_1
+
+  http_capture_0:
+    image: http_capture
+    build: 
+      context: ./http_capture/
+    ports:
+      - "8000:8000"
+    environment:
+      - SERVICE_BUS_NAMESPACE_CONNECTION_STRING=Endpoint=sb://httpingest.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=8lUCNONE5sO/nArvKacAvj2M2xIQypTyH+ASbHJDziE=
+      - SERVICE_BUS_QUEUE_NAME=requests
+
+  http_capture_1:
+    image: http_capture
+    ports:
+      - "8001:8000"
+    environment:
+      - SERVICE_BUS_NAMESPACE_CONNECTION_STRING=Endpoint=sb://httpingest.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=8lUCNONE5sO/nArvKacAvj2M2xIQypTyH+ASbHJDziE=
+      - SERVICE_BUS_QUEUE_NAME=requests
+
+  http_replay:
+    image: http_replay
+    build: 
+      context: ./http_replay/
+    links:
+      - http_logger
+    environment:
+      - SERVICE_BUS_NAMESPACE_CONNECTION_STRING=Endpoint=sb://httpingest.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=8lUCNONE5sO/nArvKacAvj2M2xIQypTyH+ASbHJDziE=
+      - SERVICE_BUS_QUEUE_NAME=requests
+      - DOWNSTREAM_ENDPOINT=http://http_logger:8000
+
+  http_logger:
+    image: http_logger
+    build: 
+      context: ./http_logger/
+    ports:
+      - "8090:8000"
